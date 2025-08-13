@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IMDb Code Finder</title>
+<style>
+  :root {
+    --imdb-yellow: #f5c518;
+    --green: #3cb371;
+    --rose-red: #e50914;
+    --status-green: #2e7d32;
+    --warning-red: #d32f2f;
+  }
+  /* Default Theme: Light */
+  body {
+    margin: 0;
+    padding: 70px 20px 20px 20px;
+    font-family: Arial, sans-serif;
+    background: #fafafa;
+    color: #222;
+    transition: background 0.3s, color 0.3s;
+  }
+  input#search {
+    background: white;
+    color: #222;
+    border: 1px solid #ccc;
+  }
+  #status {
+    color: #555;
+  }
+  .code-item {
+    background: #e0e0e0;
+    color: #222;
+  }
+
+  /* .light Class Theme: Dark */
+  body.light {
+    background: #1c1c1c;
+    color: white;
+  }
+  body.light input#search {
+    background: #2a2a2a;
+    color: white;
+    border: 1px solid #444;
+  }
+  body.light #status {
+    color: white;
+  }
+  body.light .code-item {
+    background: #2a2a2a;
+    color: white;
+  }
+
+  h1 {
+    font-weight: 600;
+    font-size: 1.5rem; 
+    margin-bottom: 10px;
+    display: inline-block;
+    background-color: #000000;
+    padding: 4px 7px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  h1 a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  #imdb-title {
+    color: var(--imdb-yellow);
+  }
+  #code-finder {
+    color: var(--rose-red);
+    text-transform: uppercase;
+  }
+  .finder-green {
+      color: var(--green);
+  }
+
+  .mode-container {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  #mode-toggle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #333;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    box-shadow: 0 0 6px rgba(0,0,0,0.3);
+    transition: background 0.3s;
+  }
+
+  /* --- REPLACED ICON CSS --- */
+  #mode-toggle svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+    transition: transform 0.3s ease;
+  }
+  .icon-moon, .icon-sun {
+    fill: var(--imdb-yellow);
+  }
+  .icon-sun g {
+    stroke: var(--imdb-yellow);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  
+  #mode-toggle .icon-sun { display: block; }
+  #mode-toggle .icon-moon { display: none; }
+  body.light #mode-toggle .icon-sun { display: none; }
+  body.light #mode-toggle .icon-moon { display: block; }
+  /* --- END REPLACEMENT --- */
+
+  input#search {
+    width: 100%;
+    max-width: 480px;
+    padding: 12px 15px;
+    font-size: 16px;
+    border-radius: 6px;
+    outline: none;
+    box-sizing: border-box;
+  }
+
+  .status-sort-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 480px;
+      margin-top: 10px;
+      min-height: 28px;
+  }
+
+  #status {
+    margin-top: 0;
+    min-height: auto;
+    font-size: 14px;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  /* --- "SEARCHING" BACKGROUND FIX --- */
+  #status.status-info,
+  #status.status-error,
+  #status.searching {
+    display: inline-block;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+  }
+  
+  #status.status-info,
+  #status.searching {
+    background-color: var(--status-green);
+  }
+  
+  #status.status-error {
+    background-color: var(--warning-red);
+  }
+
+  #status.searching::after {
+      display: inline-block;
+      animation: dots 1.4s infinite;
+      content: '.';
+  }
+  @keyframes dots {
+      0% { content: '.'; }
+      33% { content: '..'; }
+      66% { content: '...'; }
+  }
+  /* --- END FIX --- */
+
+  #sort-container {
+      margin-top: 0;
+  }
+  #sort-options {
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid #555;
+      font-size: 12px;
+  }
+  body:not(.light) #sort-options {
+      background-color: white;
+      color: #222;
+      border-color: #ccc;
+  }
+  body.light #sort-options {
+      background-color: #2a2a2a;
+      color: white;
+      border-color: #555;
+  }
+
+
+  #result {
+    margin-top: 15px;
+    max-width: 480px;
+  }
+  .code-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: background 0.3s, color 0.3s;
+    cursor: pointer;
+  }
+  .code-item:hover {
+    background: var(--imdb-yellow);
+    color: black;
+  }
+  .code-item b {
+    font-weight: 700;
+  }
+  .code-item .imdb-code {
+    color: var(--imdb-yellow);
+    font-weight: bold;
+    margin-left: 5px;
+    padding: 2px 0;
+  }
+  .code-item:hover .imdb-code {
+    color: black;
+  }
+  
+  #toast {
+    position: fixed;
+    bottom: 10px;
+    right: 20px;
+    background: var(--status-green);
+    color: white;
+    font-weight: bold;
+    padding: 10px 15px;
+    border-radius: 5px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    z-index: 9999;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    pointer-events: none;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (max-width: 520px) {
+    body {
+      padding: 70px 12px 15px 12px;
+    }
+    input#search,
+    #result,
+    .status-sort-wrapper {
+      max-width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="mode-container">
+    <button id="mode-toggle" aria-label="Toggle dark/light mode">
+        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="5"></circle>
+          <g><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></g>
+        </svg>
+    </button>
+  </div>
+  
+  <h1>
+    <a href="https://www.imdb.com" target="_blank" rel="noopener noreferrer">
+      <span id="imdb-title">IMDb</span> <span id="code-finder">Code <span class="finder-green">Finder</span></span>
+    </a>
+  </h1>
+
+  <input type="text" id="search" placeholder="Enter movie or show name" autocomplete="off" />
+  
+  <div class="status-sort-wrapper">
+    <div id="status" aria-live="polite" aria-atomic="true"></div>
+    <div id="sort-container" style="display: none;">
+      <select id="sort-options">
+        <option value="relevance">Sort by Relevance</option>
+        <option value="year_asc">Year (Oldest-Newest)</option>
+        <option value="year_desc">Year (Newest-Oldest)</option>
+        <option value="alpha_asc">Alphabetical (A-Z)</option>
+        <option value="alpha_desc">Alphabetical (Z-A)</option>
+      </select>
+    </div>
+  </div>
+  
+  <div id="result" role="list"></div>
+
+  <div id="toast" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<script>
+  // === Dark/light mode toggle ===
+  const modeBtn = document.getElementById('mode-toggle');
+  
+  let isDarkMode = localStorage.getItem('theme') === 'dark' ||
+                   (localStorage.getItem('theme') === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  function applyTheme() {
+    if (isDarkMode) {
+      document.body.classList.add('light');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('light');
+      localStorage.setItem('theme', 'light');
+    }
+  }
+
+  modeBtn.addEventListener('click', () => {
+    isDarkMode = !isDarkMode;
+    applyTheme();
+  });
+
+  applyTheme();
+
+  // === IMDb Search logic ===
+  const searchInput = document.getElementById('search');
+  const status = document.getElementById('status');
+  const resultContainer = document.getElementById('result');
+  const sortContainer = document.getElementById('sort-container');
+  const sortOptions = document.getElementById('sort-options');
+
+  const proxy = "https://api.allorigins.win/raw?url=";
+  const endpoints = [
+    "https://v2.sg.media-imdb.com/suggestion/",
+    "https://v3.sg.media-imdb.com/suggestion/"
+  ];
+
+  let currentSearchToken = null;
+  let debounceTimer;
+  const searchCache = {};
+  let currentResults = [];
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        performSearch(searchInput.value.trim());
+    }, 150);
+  });
+
+  async function performSearch(query) {
+    resultContainer.innerHTML = "";
+    status.className = '';
+    status.textContent = "";
+    sortContainer.style.display = 'none';
+
+    if (!query) return;
+    
+    if (searchCache[query]) {
+      currentResults = searchCache[query];
+      const resultCount = currentResults.length;
+      if (resultCount > 0) {
+        const resultText = resultCount === 1 ? 'result' : 'results';
+        status.textContent = `Showing ${resultCount} ${resultText}`;
+        status.classList.add('status-info');
+        sortAndDisplayResults();
+      } else {
+        status.textContent = "No results found. Please type correct spelling.";
+        status.classList.add('status-error');
+      }
+      return;
+    }
+
+    status.textContent = "Searching";
+    status.classList.add('searching');
+
+    const token = Symbol();
+    currentSearchToken = token;
+
+    let allFoundItems = [];
+    let fetchError = false;
+    for (const base of endpoints) {
+      try {
+        const firstLetter = query[0].toLowerCase();
+        const url = proxy + encodeURIComponent(`${base}${firstLetter}/${encodeURIComponent(query)}.json`);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const text = await res.text();
+        const match = text.match(/^[^(]+\(([\s\S]*)\)\s*$/);
+        const json = JSON.parse(match ? match[1] : text);
+        allFoundItems = json.d || [];
+        fetchError = false;
+        if (allFoundItems.length > 0) break;
+      } catch(e) {
+        console.error(`Failed to fetch from ${base}:`, e);
+        fetchError = true;
+      }
+    }
+
+    if (currentSearchToken !== token) return;
+    
+    if (fetchError && allFoundItems.length === 0) {
+        status.classList.replace('searching', 'status-error');
+        status.textContent = "Search service is unavailable. Please try again later.";
+        return;
+    }
+    
+    const validItems = allFoundItems.filter(item => {
+      const isTitle = item.id && item.id.startsWith('tt');
+      if (!isTitle) return false;
+      
+      const queryCompact = query.toLowerCase().replace(/\s+/g, '');
+      const titleCompact = item.l.toLowerCase().replace(/\s+/g, '');
+      
+      return titleCompact.includes(queryCompact);
+    });
+    
+    currentResults = validItems;
+    searchCache[query] = validItems;
+
+    if (validItems.length === 0) {
+      status.classList.replace('searching', 'status-error');
+      status.textContent = "No results found. Please type correct spelling.";
+    } else {
+      status.classList.replace('searching', 'status-info');
+      const resultCount = validItems.length;
+      const resultText = resultCount === 1 ? 'result' : 'results';
+      status.textContent = `Showing ${resultCount} ${resultText}`;
+      sortAndDisplayResults();
+    }
+  }
+  
+  function sortAndDisplayResults() {
+      const sortBy = sortOptions.value;
+      let sortedResults = [...currentResults];
+
+      const sortYear = (a, b) => {
+          if (!a.y) return 1;
+          if (!b.y) return -1;
+          return 0;
+      };
+
+      switch (sortBy) {
+          case 'year_asc':
+              sortedResults.sort((a, b) => sortYear(a, b) || a.y - b.y);
+              break;
+          case 'year_desc':
+              sortedResults.sort((a, b) => sortYear(a, b) || b.y - a.y);
+              break;
+          case 'alpha_asc':
+              sortedResults.sort((a, b) => a.l.localeCompare(b.l));
+              break;
+          case 'alpha_desc':
+              sortedResults.sort((a, b) => b.l.localeCompare(a.l));
+              break;
+          case 'relevance':
+          default:
+              break;
+      }
+      
+      if (sortedResults.length > 0) {
+        sortContainer.style.display = 'block';
+      }
+      
+      displayResults(sortedResults);
+  }
+  
+  sortOptions.addEventListener('change', sortAndDisplayResults);
+
+
+  function displayResults(items) {
+    resultContainer.innerHTML = "";
+    items.forEach(item => {
+      if (!item.id || !item.l) return;
+
+      const div = document.createElement('div');
+      div.className = "code-item";
+      div.setAttribute('role', 'listitem');
+      div.innerHTML = `<b>${item.l}</b> (${item.y || "N/A"}) <span class="imdb-code">${item.id}</span>`;
+      
+      div.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        searchInput.blur();
+        copyCode(item.id);
+      });
+      
+      resultContainer.appendChild(div);
+    });
+  }
+
+  const toast = document.getElementById('toast');
+  let toastTimeout;
+
+  function copyCode(code) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(() => {
+        showToast(`Copied: ${code}`);
+      }).catch(() => {
+        fallbackCopy(code);
+      });
+    } else {
+      fallbackCopy(code);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.readOnly = true;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      showToast(`Copied: ${text}`);
+    } catch {
+      showToast("Failed to copy");
+    }
+    document.body.removeChild(textarea);
+  }
+
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+      toast.classList.remove("show");
+    }, 850);
+  }
+</script>
+</body>
+</html>
